@@ -178,8 +178,12 @@ int main(int argc, char* argv[]){
 //     	}
 //     }
 
-    cudaFree(W);
-    cudaFree(Z);
-    cudaFree(B);
-    cudaFree(X);
+    cudaFree(cpuW);
+    cudaFree(cpuZ);
+    cudaFree(cpuB);
+    cudaFree(cpuX);
+    cudaFree(gpuW);
+    cudaFree(gpuZ);
+    cudaFree(gpuB);
+    cudaFree(gpuX);
 }
