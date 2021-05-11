@@ -120,7 +120,7 @@ int main(int argc, char* argv[]){
         else{
             readIntoArray(W, &inFile, weightSize);
         }
-		cudaMemPrefetchAsync(W, SIZE, id);
+		cudaMemPrefetchAsync(W, weightSize*sizeof(float), id);
   
         inFile.open(biasfileName.c_str());
         readIntoArray(B, &inFile, biasSize);
