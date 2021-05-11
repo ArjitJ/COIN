@@ -165,16 +165,18 @@ int main(int argc, char* argv[]){
             &beta, Z, OUT_DIM);
     cudaDeviceSynchronize();
 
-    idx = 0;
-    for(int i=0;i<COORDS;i++){
-    	for(int j=0;j<OUT_DIM;j++){
-    		cout<<Z[idx++]<<endl;
-    	}
-    }
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&time, start, stop);
 	cout<<"Time Taken: "<<time/1000<<endl;
+	//Disable printining only for running time analysis
+//     idx = 0;
+//     for(int i=0;i<COORDS;i++){
+//     	for(int j=0;j<OUT_DIM;j++){
+//     		cout<<Z[idx++]<<endl;
+//     	}
+//     }
+
 
     cudaFree(W);
     cudaFree(Z);
