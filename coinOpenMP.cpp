@@ -105,7 +105,7 @@ int main(int argc, char* argv[]){
     int biasSize = DIM;
     int COORDS = RESX*RESY;
     int outputSize = COORDS*DIM;
-    
+    float t1, t2;
     int idx = 0;
 	  int b=32;
       
@@ -116,6 +116,7 @@ int main(int argc, char* argv[]){
     X = new float[COORDS*DIM];
     
     fillCoordinateMatrix(X, STARTX, STARTY, ENDX, ENDY, RESX, RESY, HEIGHT, WIDTH);
+    t1 = omp_get_wtime();
     for(int layer=0;layer<NUM_LAYERS;layer++){
         string weightsfileName = "weightsT/net."+to_string(layer)+".linear.weight";
         string biasfileName = "weightsT/net."+to_string(layer)+".linear.bias";
@@ -157,14 +158,15 @@ int main(int argc, char* argv[]){
         }
     }
     MatrixMultiply(COORDS, OUT_DIM, DIM, X, DIM, W, OUT_DIM, Z, OUT_DIM);
-
-    idx = 0;
-   for(int i=0;i<COORDS;i++){
-   	for(int j=0;j<OUT_DIM;j++){
-   		cout<<Z[idx++]<<endl;
-   	}
-   }
-	// cout<<"Time Taken: "<<time/1000<<endl;
+    t2 = omp_get_wtime();
+  
+//     idx = 0;
+//    for(int i=0;i<COORDS;i++){
+//    	for(int j=0;j<OUT_DIM;j++){
+//    		cout<<Z[idx++]<<endl;
+//    	}
+//    }
+    cout<<"Time Taken: "<<t2-t1<<endl;
 
     delete [] W;
     delete [] Z;
