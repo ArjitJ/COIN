@@ -93,11 +93,11 @@ int main(int argc, char* argv[]){
     cublasHandle_t handle;
     cublasCreate(&handle);
 
-    malloc(&cpuZ, outputSize*sizeof(float));
-    malloc(&cpuW, weightSize*sizeof(float));
-    malloc(&cpuB, biasSize*sizeof(float));
-    malloc(&cpuX, COORDS*DIM*sizeof(float));
-
+    cpuZ = new float[outputSize];
+    cpuW = new float[weightSize];
+    cpuB = new float[biasSize];
+    cpuX = new float[COORDS*DIM];
+	
     cudaMalloc(&gpuZ, outputSize*sizeof(float));
     cudaMalloc(&gpuW, weightSize*sizeof(float));
     cudaMalloc(&gpuB, biasSize*sizeof(float));
@@ -178,10 +178,11 @@ int main(int argc, char* argv[]){
 //     	}
 //     }
 
-    cudaFree(cpuW);
-    cudaFree(cpuZ);
-    cudaFree(cpuB);
-    cudaFree(cpuX);
+    delete [] cpuW;
+    delete [] cpuZ;
+    delete [] cpuB;
+    delete [] cpuX;
+	
     cudaFree(gpuW);
     cudaFree(gpuZ);
     cudaFree(gpuB);
