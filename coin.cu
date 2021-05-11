@@ -82,6 +82,11 @@ int main(int argc, char* argv[]){
     int idx = 0;
     int NUM_THREADS=1024;
     int NUM_BLOCKS;
+	
+	
+    float time;
+    cudaEvent_t start, stop;	
+    
     cublasHandle_t handle;
     cublasCreate(&handle);
 
@@ -93,6 +98,9 @@ int main(int argc, char* argv[]){
 
     fillCoordinateMatrix(X, STARTX, STARTY, ENDX, ENDY, RESX, RESY, HEIGHT, WIDTH);
     
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+	cudaEventRecord(start, 0);
 
     for(int layer=0;layer<NUM_LAYERS;layer++){
     
@@ -154,6 +162,10 @@ int main(int argc, char* argv[]){
     		cout<<Z[idx++]<<endl;
     	}
     }
+	cudaEventRecord(stop, 0);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&time, start, stop);
+	cout<<"Time Taken: "<<time/1000<<endl;
 
     cudaFree(W);
     cudaFree(Z);
