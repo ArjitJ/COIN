@@ -89,15 +89,22 @@ int main(int argc, char* argv[]){
     
     cublasHandle_t handle;
     cublasCreate(&handle);
+	
+    int id = cudaGetDevice(&id);	
 
     cudaMallocManaged(&Z, outputSize*sizeof(float));
     cudaMallocManaged(&W, weightSize*sizeof(float));
     cudaMallocManaged(&B, biasSize*sizeof(float));
     cudaMallocManaged(&X, COORDS*DIM*sizeof(float));
-
+  
+	cudaMemAdvise(W, weightSize*sizeof(float), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
+    cudaMemAdvise(B, biasSize*sizeof(float), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);   
+	cudaMemAdvise(X, COORDS*DIM*sizeof(float), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);   
+// 	cudaMemPrefetchAsync(Z, outputSize*sizeof(float), id);
 
     fillCoordinateMatrix(X, STARTX, STARTY, ENDX, ENDY, RESX, RESY, HEIGHT, WIDTH);
-    
+	cudaMemAdvise(X, COORDS*DIM*sizeof(float), cudaMemAdviseSetPreferredLocation, id);   
+	cudaMemPrefetchAsync(X, COORDS*DIM*sizeof(float), id);
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
@@ -113,6 +120,8 @@ int main(int argc, char* argv[]){
         else{
             readIntoArray(W, &inFile, weightSize);
         }
+		cudaMemPrefetchAsync(W, SIZE, id);
+  
         inFile.open(biasfileName.c_str());
         readIntoArray(B, &inFile, biasSize);
 
@@ -121,8 +130,8 @@ int main(int argc, char* argv[]){
             for(int i=0;i<biasSize;i++){
         		Z[idx++] = B[i];
         	}
-        }
-
+		}
+  		cudaMemPrefetchAsync(Z, outputSize*sizeof(float), id);
         if(layer == 0){
             cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, DIM, COORDS, INP_DIM, &alpha, W, DIM, X, INP_DIM,
                     &beta, Z, DIM);
