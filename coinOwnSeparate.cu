@@ -167,7 +167,6 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
 	float* cpuW;
 	float* cpuB;
 	float* cpuZ;
-	float* cpuX;
     	float* gpuW;
 	float* gpuB;
 	float* gpuZ;
@@ -175,7 +174,6 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
 	   cpuZ = new float[outputSize];
     cpuW = new float[weightSize];
     cpuB = new float[biasSize];
-    cpuX = new float[COORDS*DIM];
 	
     cudaMalloc(&gpuZ, outputSize*sizeof(float));
     cudaMalloc(&gpuW, weightSize*sizeof(float));
@@ -254,7 +252,6 @@ if(PRINT_TIME){
 	    delete [] cpuW;
     delete [] cpuZ;
     delete [] cpuB;
-    delete [] cpuX;
 	
     cudaFree(gpuW);
     cudaFree(gpuZ);
