@@ -11,6 +11,12 @@
 #include "device_launch_parameters.h"
 
 using namespace std;
+__global__ void copyBias(float *O, float *Z, int N, int M) {
+    int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if(tid<N){
+        O[tid] = Z[tid%M];
+    }
+}
 __global__ void sineActivation(float *O, float *Z, int N, float weight=30.0) {
     int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
     if(tid<N){
@@ -25,6 +31,16 @@ void readIntoArray(float* arr, ifstream* inFile, int SIZE){
             *inFile >> arr[i];
         }
         inFile->close();
+    }
+}
+__global__ void fillCoordinateMatrixCUDA(float* X, float start_x, float start_y, float diff_x, float diff_y, int RESX, int RESY){
+    int idx;
+    int tidx = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int tidy = (blockIdx.y * blockDim.y) + threadIdx.y;
+    if(tidx < RESX && tidy < RESY){
+        idx = 2*(tidx*RESY + tidy);
+        X[idx++] = start_x + tidx*(diff_x);
+        X[idx++] = start_y + tidy*(diff_y);
     }
 }
 void fillCoordinateMatrix(float* X, int STARTX, int STARTY, int ENDX, int ENDY, int RESX, int RESY, int HEIGHT, int WIDTH){
@@ -86,7 +102,14 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     int NUM_THREADS=1024;
     int NUM_BLOCKS;
 	
-	
+    float start_x = STARTX/(HEIGHT-1.0);
+    start_x -= 0.5;
+    start_x *= 2.0;
+    float start_y = STARTY/(HEIGHT-1.0);
+    start_y -= 0.5;
+    start_y *= 2.0;
+    float diff_x = 2*((ENDX-STARTX)/(HEIGHT-1.0))/RESX;
+    float diff_y = 2*((ENDY-STARTY)/(HEIGHT-1.0))/RESY;
     float time;
     cudaEvent_t start, stop;	
     
@@ -103,9 +126,12 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     cudaMalloc(&gpuB, biasSize*sizeof(float));
     cudaMalloc(&gpuX, COORDS*DIM*sizeof(float));
 
-
-    fillCoordinateMatrix(cpuX, STARTX, STARTY, ENDX, ENDY, RESX, RESY, HEIGHT, WIDTH);
-    cudaMemcpy(gpuX, cpuX, COORDS*DIM*sizeof(float), cudaMemcpyHostToDevice);
+	dim3 threads(32, 32);
+    dim3 blocks(ceil((float)RESX/32), ceil((float)RESY/32));
+    fillCoordinateMatrixCUDA<<<blocks, threads>>>(gpuX, start_x, start_y, diff_x, diff_y, RESX, RESY);
+    cudaDeviceSynchronize();
+//     fillCoordinateMatrix(cpuX, STARTX, STARTY, ENDX, ENDY, RESX, RESY, HEIGHT, WIDTH);
+//     cudaMemcpy(gpuX, cpuX, COORDS*DIM*sizeof(float), cudaMemcpyHostToDevice);
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
@@ -124,13 +150,10 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
         inFile.open(biasfileName.c_str());
         readIntoArray(cpuB, &inFile, biasSize);
 	cudaMemcpy(gpuW, cpuW, weightSize*sizeof(float), cudaMemcpyHostToDevice);
-	idx=0;
-        for(int j=0;j<COORDS;j++){
-            for(int i=0;i<biasSize;i++){
-        		cpuZ[idx++] = cpuB[i];
-        	}
-        }
-	cudaMemcpy(gpuZ, cpuZ, outputSize*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(gpuB, cpuB, biasSize*sizeof(float), cudaMemcpyHostToDevice);
+	copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(gpuZ, gpuB, COORDS*biasSize, biasSize);
+        cudaDeviceSynchronize();
+// 	cudaMemcpy(gpuZ, cpuZ, outputSize*sizeof(float), cudaMemcpyHostToDevice);
         if(layer == 0){
             cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, DIM, COORDS, INP_DIM, &alpha, gpuW, DIM, gpuX, INP_DIM,
                     &beta, gpuZ, DIM);
@@ -155,12 +178,11 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     idx=0;
     cudaMemcpy(gpuW, cpuW, weightSize*sizeof(float), cudaMemcpyHostToDevice);
 	
-    for(int j=0;j<COORDS;j++){
-        for(int i=0;i<biasSize;i++){
-            cpuZ[idx++] = cpuB[i];
-        }
-    }
-    cudaMemcpy(gpuZ, cpuZ, outputSize*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(gpuB, cpuB, biasSize*sizeof(float), cudaMemcpyHostToDevice);
+	copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(gpuZ, gpuB, COORDS*biasSize, biasSize);
+	cudaDeviceSynchronize();
+
+//     cudaMemcpy(gpuZ, cpuZ, outputSize*sizeof(float), cudaMemcpyHostToDevice);
         
     cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, OUT_DIM, COORDS, DIM, &alpha, gpuW, OUT_DIM, gpuX, DIM,
             &beta, gpuZ, OUT_DIM);
