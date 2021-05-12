@@ -138,10 +138,6 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     PRINT_TIME = atoi(argv[10]);
     
     ifstream inFile;
-	  float* W;
-  	float* B;
-  	float* Z;
-  	float* X;
     float start_x = STARTX/(HEIGHT-1.0);
     start_x -= 0.5;
     start_x *= 2.0;
