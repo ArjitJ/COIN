@@ -1,6 +1,6 @@
 # nvcc -o coin coin.cu -lcublas
 # python preprocessing.py TORCH_MODEL_FILE
-# ./coin NUM_LAYERS DIM HEIGHT WIDTH RESX RESY STARTX STARTY ENDX ENDY > OUT
+# ./coin NUM_LAYERS DIM HEIGHT RESX RESY STARTX STARTY ENDX ENDY > OUT
 # python postprocessing.py OUT RESX RESY
 
 nvcc -o coin $1 -lcublas
