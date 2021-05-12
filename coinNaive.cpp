@@ -19,7 +19,6 @@ void MatrixMultiply(int M, int N, int K, float* A, int LDA, float* B, int LDB, f
   }
 }
 void sineActivation(float *O, float *Z, int N, float weight=30.0) {
-    #pragma omp parallel for schedule(dynamic, 32) 
     for(int i=0;i<N;i++){
         O[i] = sin(weight*Z[i]);
     }
