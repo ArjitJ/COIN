@@ -133,7 +133,8 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start, 0);
-
+    NUM_BLOCKS=ceil((float)(COORDS*DIM)/NUM_THREADS);
+        
     for(int layer=0;layer<NUM_LAYERS;layer++){
     
         string weightsfileName = "weightsT/net."+to_string(layer)+".linear.weight";
@@ -161,7 +162,6 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
         }
 
         cudaDeviceSynchronize();
-        NUM_BLOCKS=ceil((float)(COORDS*DIM)/NUM_THREADS);
         sineActivation<<<NUM_BLOCKS, NUM_THREADS>>>(gpuX, gpuZ, COORDS*DIM);
         cudaDeviceSynchronize();
     }
