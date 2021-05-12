@@ -255,8 +255,13 @@ if(PRINT_TIME){
 			}
 		}
 	}
-    cudaFree(W);
-    cudaFree(Z);
-    cudaFree(B);
-    cudaFree(X);
+	    delete [] cpuW;
+    delete [] cpuZ;
+    delete [] cpuB;
+    delete [] cpuX;
+	
+    cudaFree(gpuW);
+    cudaFree(gpuZ);
+    cudaFree(gpuB);
+    cudaFree(gpuX);
 }
