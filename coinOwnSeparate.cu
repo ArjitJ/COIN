@@ -186,7 +186,8 @@ int main(int argc, char* argv[]){
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start, 0);
-
+    NUM_BLOCKS=ceil((float)(COORDS*DIM)/NUM_THREADS);
+        
     for(int layer=0;layer<NUM_LAYERS;layer++){
         string weightsfileName = "weightsT/net."+to_string(layer)+".linear.weight";
         string biasfileName = "weightsT/net."+to_string(layer)+".linear.bias";
@@ -213,7 +214,6 @@ int main(int argc, char* argv[]){
             MatrixMultiply<<<blocks,threads>>>(COORDS, DIM, DIM, gpuX, DIM, gpuW, DIM, gpuZ, DIM);
         }
         cudaDeviceSynchronize();
-        NUM_BLOCKS=ceil((float)(COORDS*DIM)/NUM_THREADS);
         sineActivation<<<NUM_BLOCKS, NUM_THREADS>>>(gpuX, gpuZ, COORDS*DIM);
         cudaDeviceSynchronize();
     }
