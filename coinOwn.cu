@@ -11,6 +11,12 @@
 #include "device_launch_parameters.h"
 
 using namespace std;
+__global__ void copyBias(float *O, float *Z, int N, int M) {
+    int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if(tid<N){
+        O[tid] = Z[tid%M];
+    }
+}
 __global__ void MatrixMultiply(int M, int N, int K, float* A, int LDA, float* B, int LDB, float*C, int LDC) {
   __shared__ float ABlock[32*32];
   __shared__ float BBlock[32*32];
@@ -82,6 +88,16 @@ void readIntoArray(float* arr, ifstream* inFile, int SIZE){
         inFile->close();
     }
 }
+__global__ void fillCoordinateMatrixCUDA(float* X, float start_x, float start_y, float diff_x, float diff_y, int RESX, int RESY){
+    int idx;
+    int tidx = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int tidy = (blockIdx.y * blockDim.y) + threadIdx.y;
+    if(tidx < RESX && tidy < RESY){
+        idx = 2*(tidx*RESY + tidy);
+        X[idx++] = start_x + tidx*(diff_x);
+        X[idx++] = start_y + tidy*(diff_y);
+    }
+}
 void fillCoordinateMatrix(float* X, int STARTX, int STARTY, int ENDX, int ENDY, int RESX, int RESY, int HEIGHT, int WIDTH){
     float start_x = STARTX/(HEIGHT-1.0);
     start_x -= 0.5;
@@ -126,7 +142,15 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
   	float* B;
   	float* Z;
   	float* X;
-    
+    float start_x = STARTX/(HEIGHT-1.0);
+    start_x -= 0.5;
+    start_x *= 2.0;
+    float start_y = STARTY/(HEIGHT-1.0);
+    start_y -= 0.5;
+    start_y *= 2.0;
+    float diff_x = 2*((ENDX-STARTX)/(HEIGHT-1.0))/RESX;
+    float diff_y = 2*((ENDY-STARTY)/(HEIGHT-1.0))/RESY;
+	
     int weightSize = DIM*DIM;
     int biasSize = DIM;
     int COORDS = RESX*RESY;
@@ -149,8 +173,9 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     cudaMallocManaged(&B, biasSize*sizeof(float));
     cudaMallocManaged(&X, COORDS*DIM*sizeof(float));
 
-
-    fillCoordinateMatrix(X, STARTX, STARTY, ENDX, ENDY, RESX, RESY, HEIGHT, WIDTH);
+    dim3 blocks(ceil((float)RESX/32), ceil((float)RESY/32));
+    fillCoordinateMatrixCUDA<<<blocks, threads>>>(X, start_x, start_y, diff_x, diff_y, RESX, RESY);
+	cudaDeviceSynchronize();
     
   	cudaEventCreate(&start);
   	cudaEventCreate(&stop);
@@ -169,12 +194,8 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
         inFile.open(biasfileName.c_str());
         readIntoArray(B, &inFile, biasSize);
 
-        idx=0;
-        for(int j=0;j<COORDS;j++){
-            for(int i=0;i<biasSize;i++){
-        		Z[idx++] = B[i];
-        	}
-        }
+       	copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(Z, B, COORDS*biasSize, biasSize);
+        cudaDeviceSynchronize();
         MULBLOCKSX = ceil((float)COORDS/b);
         MULBLOCKSY = ceil((float)DIM/b);
         dim3 blocks(MULBLOCKSX, MULBLOCKSY);
@@ -195,13 +216,8 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     readIntoArray(W, &inFile, DIM*OUT_DIM);
     inFile.open(biasfileName.c_str());
     readIntoArray(B, &inFile, OUT_DIM);
-    idx=0;
-
-    for(int j=0;j<COORDS;j++){
-        for(int i=0;i<biasSize;i++){
-            Z[idx++] = B[i];
-        }
-    }
+	copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(Z, B, COORDS*biasSize, biasSize);
+        cudaDeviceSynchronize();
     MULBLOCKSX = ceil((float)COORDS/b);
     MULBLOCKSY = ceil((float)OUT_DIM/b);
     dim3 blocks(MULBLOCKSX, MULBLOCKSY);
