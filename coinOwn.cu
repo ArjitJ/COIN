@@ -78,7 +78,7 @@ __global__ void sineActivation(float *O, float *Z, int N, float weight=30.0) {
     }
 }
 void readIntoArray(float* arr, ifstream* inFile, int SIZE){
-	if (inFile->is_open())  
+  if (inFile->is_open())  
     {   
 
         for (int i = 0; i < SIZE; i++) 
@@ -125,7 +125,7 @@ int main(int argc, char* argv[]){
     int OUT_DIM = 3;
 
     // ArgParse
-int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
+    int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     NUM_LAYERS = atoi(argv[1]);
     DIM = atoi(argv[2]);
     HEIGHT = atoi(argv[3]);
@@ -138,10 +138,10 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     PRINT_TIME = atoi(argv[10]);
     
     ifstream inFile;
-	  float* W;
-  	float* B;
-  	float* Z;
-  	float* X;
+    float* W;
+    float* B;
+    float* Z;
+    float* X;
     float start_x = STARTX/(HEIGHT-1.0);
     start_x -= 0.5;
     start_x *= 2.0;
@@ -150,7 +150,7 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     start_y *= 2.0;
     float diff_x = 2*((ENDX-STARTX)/(HEIGHT-1.0))/RESX;
     float diff_y = 2*((ENDY-STARTY)/(HEIGHT-1.0))/RESY;
-	
+  
     int weightSize = DIM*DIM;
     int biasSize = DIM;
     int COORDS = RESX*RESY;
@@ -159,14 +159,14 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     int idx = 0;
     int NUM_THREADS=1024;
     int NUM_BLOCKS;
-	  int b=32;
-	  int MULTHREADS = 32;
+    int b=32;
+    int MULTHREADS = 32;
     int MULBLOCKSX;
     int MULBLOCKSY;
     dim3 threads(MULTHREADS, MULTHREADS);
       
     float time;
-    cudaEvent_t start, stop;	
+    cudaEvent_t start, stop;  
     
     cudaMallocManaged(&Z, outputSize*sizeof(float));
     cudaMallocManaged(&W, weightSize*sizeof(float));
@@ -175,11 +175,11 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
 
     dim3 blocks(ceil((float)RESX/32), ceil((float)RESY/32));
     fillCoordinateMatrixCUDA<<<blocks, threads>>>(X, start_x, start_y, diff_x, diff_y, RESX, RESY);
-	cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     
-  	cudaEventCreate(&start);
-  	cudaEventCreate(&stop);
-  	cudaEventRecord(start, 0);
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
 
     for(int layer=0;layer<NUM_LAYERS;layer++){
         string weightsfileName = "weightsT/net."+to_string(layer)+".linear.weight";
@@ -194,7 +194,7 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
         inFile.open(biasfileName.c_str());
         readIntoArray(B, &inFile, biasSize);
 
-       	copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(Z, B, COORDS*biasSize, biasSize);
+         copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(Z, B, COORDS*biasSize, biasSize);
         cudaDeviceSynchronize();
         MULBLOCKSX = ceil((float)COORDS/b);
         MULBLOCKSY = ceil((float)DIM/b);
@@ -216,8 +216,8 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     readIntoArray(W, &inFile, DIM*OUT_DIM);
     inFile.open(biasfileName.c_str());
     readIntoArray(B, &inFile, OUT_DIM);
-	copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(Z, B, COORDS*biasSize, biasSize);
-        cudaDeviceSynchronize();
+    copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(Z, B, COORDS*biasSize, biasSize);
+    cudaDeviceSynchronize();
     MULBLOCKSX = ceil((float)COORDS/b);
     MULBLOCKSY = ceil((float)OUT_DIM/b);
     dim3 blocks_final(MULBLOCKSX, MULBLOCKSY);
@@ -227,17 +227,17 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&time, start, stop);
 
-if(PRINT_TIME){
-    	cout<<"Time Taken: "<<time/1000<<endl;
+    if(PRINT_TIME){
+      cout<<"Time Taken: "<<time/1000<<endl;
     }
-	else{
-		idx = 0;
-		for(int i=0;i<COORDS;i++){
-			for(int j=0;j<OUT_DIM;j++){
-				cout<<Z[idx++]<<endl;
-			}
-		}
-	}
+    else{
+      idx = 0;
+      for(int i=0;i<COORDS;i++){
+        for(int j=0;j<OUT_DIM;j++){
+          cout<<Z[idx++]<<endl;
+        }
+      }
+    }
     cudaFree(W);
     cudaFree(Z);
     cudaFree(B);

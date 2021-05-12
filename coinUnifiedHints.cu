@@ -25,7 +25,7 @@ __global__ void sineActivation(float *O, float *Z, int N, float weight=30.0) {
     }
 }
 void readIntoArray(float* arr, ifstream* inFile, int SIZE){
-	if (inFile->is_open())  
+    if (inFile->is_open())  
     {
         for (int i = 0; i < SIZE; i++) 
         {
@@ -83,8 +83,8 @@ int main(int argc, char* argv[]){
     ENDX = atoi(argv[8]);
     ENDY = atoi(argv[9]);
     PRINT_TIME = atoi(argv[10]);
-	
-	
+    
+    
     float start_x = STARTX/(HEIGHT-1.0);
     start_x -= 0.5;
     start_x *= 2.0;
@@ -96,10 +96,10 @@ int main(int argc, char* argv[]){
     
 
     ifstream inFile;
-	float* W;
-	float* B;
-	float* Z;
-	float* X;
+    float* W;
+    float* B;
+    float* Z;
+    float* X;
     
     int weightSize = DIM*DIM;
     int biasSize = DIM;
@@ -111,15 +111,15 @@ int main(int argc, char* argv[]){
     int idx = 0;
     int NUM_THREADS=1024;
     int NUM_BLOCKS;
-	
-	
+    
+    
     float time;
-    cudaEvent_t start, stop;	
+    cudaEvent_t start, stop;    
     
     cublasHandle_t handle;
     cublasCreate(&handle);
-	
-    int id = cudaGetDevice(&id);	
+    
+    int id = cudaGetDevice(&id);    
 
     cudaMallocManaged(&Z, outputSize*sizeof(float));
     cudaMallocManaged(&W, weightSize*sizeof(float));
@@ -128,7 +128,7 @@ int main(int argc, char* argv[]){
     
     cudaMemAdvise(X, COORDS*DIM*sizeof(float), cudaMemAdviseSetPreferredLocation, id);   
     cudaMemAdvise(Z, outputSize*sizeof(float), cudaMemAdviseSetPreferredLocation, id);   
- 	cudaMemPrefetchAsync(X, COORDS*DIM*sizeof(float), id);
+    cudaMemPrefetchAsync(X, COORDS*DIM*sizeof(float), id);
     cudaMemPrefetchAsync(Z, outputSize*sizeof(float), id);
 
     dim3 threads(32, 32);
@@ -137,8 +137,8 @@ int main(int argc, char* argv[]){
     cudaDeviceSynchronize();
 
     cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-	cudaEventRecord(start, 0);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
     NUM_BLOCKS=ceil((float)(COORDS*DIM)/NUM_THREADS);
     for(int layer=0;layer<NUM_LAYERS;layer++){
         string weightsfileName = "weightsT/net."+to_string(layer)+".linear.weight";
@@ -190,16 +190,16 @@ int main(int argc, char* argv[]){
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&time, start, stop);
     if(PRINT_TIME){
-    	cout<<"Time Taken: "<<time/1000<<endl;
+        cout<<"Time Taken: "<<time/1000<<endl;
     }
-	else{
-		idx = 0;
-		for(int i=0;i<COORDS;i++){
-			for(int j=0;j<OUT_DIM;j++){
-				cout<<Z[idx++]<<endl;
-			}
-		}
-	}
+    else{
+        idx = 0;
+        for(int i=0;i<COORDS;i++){
+            for(int j=0;j<OUT_DIM;j++){
+                cout<<Z[idx++]<<endl;
+            }
+        }
+    }
     cudaFree(W);
     cudaFree(Z);
     cudaFree(B);
