@@ -57,7 +57,7 @@ void readIntoArray(float* arr, ifstream* inFile, int SIZE){
         inFile->close();
     }
 }
-void fillCoordinateMatrix(float* X, int STARTX, int STARTY, int ENDX, int ENDY, int RESX, int RESY, int HEIGHT, int WIDTH){
+void fillCoordinateMatrix(float* X, int STARTX, int STARTY, int ENDX, int ENDY, int RESX, int RESY, int HEIGHT){
     float start_x = STARTX/(HEIGHT-1.0);
     start_x -= 0.5;
     start_x *= 2.0;
@@ -115,7 +115,7 @@ int main(int argc, char* argv[]){
     B = new float[biasSize];
     X = new float[COORDS*DIM];
     
-    fillCoordinateMatrix(X, STARTX, STARTY, ENDX, ENDY, RESX, RESY, HEIGHT, WIDTH);
+    fillCoordinateMatrix(X, STARTX, STARTY, ENDX, ENDY, RESX, RESY, HEIGHT);
     t1 = omp_get_wtime();
     for(int layer=0;layer<NUM_LAYERS;layer++){
         string weightsfileName = "weightsT/net."+to_string(layer)+".linear.weight";
