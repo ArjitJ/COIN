@@ -220,7 +220,7 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
         cudaDeviceSynchronize();
     MULBLOCKSX = ceil((float)COORDS/b);
     MULBLOCKSY = ceil((float)OUT_DIM/b);
-    dim3 blocks(MULBLOCKSX, MULBLOCKSY);
+    blocks(MULBLOCKSX, MULBLOCKSY);
     MatrixMultiply<<<blocks,threads>>>(COORDS, OUT_DIM, DIM, X, DIM, W, OUT_DIM, Z, OUT_DIM);
     cudaDeviceSynchronize();
     cudaEventRecord(stop, 0);
