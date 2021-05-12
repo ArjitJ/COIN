@@ -5,5 +5,5 @@
 
 nvcc -o coin $1 -lcublas
 python preprocessing.py best_model_3.pt
-./coin 5 20 512 512 768 0 0 511 767 1
+./coin 5 20 512 512 768 0 0 511 767 $2
 # python postprocessing.py OUT 512 768
