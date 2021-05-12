@@ -47,7 +47,7 @@ void sineActivation(float *O, float *Z, int N, float weight=30.0) {
     }
 }
 void readIntoArray(float* arr, ifstream* inFile, int SIZE){
-	if (inFile->is_open())  
+    if (inFile->is_open())  
     {   
 
         for (int i = 0; i < SIZE; i++) 
@@ -96,10 +96,10 @@ int main(int argc, char* argv[]){
     PRINT_TIME = atoi(argv[10]);
     
     ifstream inFile;
-	  float* W;
-  	float* B;
-  	float* Z;
-  	float* X;
+    float* W;
+    float* B;
+    float* Z;
+    float* X;
     
     int weightSize = DIM*DIM;
     int biasSize = DIM;
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]){
     int outputSize = COORDS*DIM;
     float t1, t2;
     int idx = 0;
-	  int b=32;
+    int b=32;
       
     float time;
     Z = new float[outputSize];
@@ -133,8 +133,8 @@ int main(int argc, char* argv[]){
         idx=0;
         for(int j=0;j<COORDS;j++){
             for(int i=0;i<biasSize;i++){
-        		Z[idx++] = B[i];
-        	}
+                Z[idx++] = B[i];
+            }
         }
         if(layer == 0){
             MatrixMultiply(COORDS, DIM, INP_DIM, X, INP_DIM, W, DIM, Z, DIM);
@@ -161,16 +161,16 @@ int main(int argc, char* argv[]){
     t2 = omp_get_wtime();
     
     if(PRINT_TIME){
-    	cout<<"Time Taken: "<<t2-t1<<endl;
+        cout<<"Time Taken: "<<t2-t1<<endl;
     }
-	else{
-		idx = 0;
-		for(int i=0;i<COORDS;i++){
-			for(int j=0;j<OUT_DIM;j++){
-				cout<<Z[idx++]<<endl;
-			}
-		}
-	}
+    else{
+        idx = 0;
+        for(int i=0;i<COORDS;i++){
+            for(int j=0;j<OUT_DIM;j++){
+                cout<<Z[idx++]<<endl;
+            }
+        }
+    }
 
     delete [] W;
     delete [] Z;

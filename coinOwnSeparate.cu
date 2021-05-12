@@ -78,7 +78,7 @@ __global__ void sineActivation(float *O, float *Z, int N, float weight=30.0) {
     }
 }
 void readIntoArray(float* arr, ifstream* inFile, int SIZE){
-	if (inFile->is_open())  
+  if (inFile->is_open())  
     {   
 
         for (int i = 0; i < SIZE; i++) 
@@ -125,7 +125,7 @@ int main(int argc, char* argv[]){
     int OUT_DIM = 3;
 
     // ArgParse
-int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
+    int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     NUM_LAYERS = atoi(argv[1]);
     DIM = atoi(argv[2]);
     HEIGHT = atoi(argv[3]);
@@ -146,7 +146,7 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     start_y *= 2.0;
     float diff_x = 2*((ENDX-STARTX)/(HEIGHT-1.0))/RESX;
     float diff_y = 2*((ENDY-STARTY)/(HEIGHT-1.0))/RESY;
-	
+  
     int weightSize = DIM*DIM;
     int biasSize = DIM;
     int COORDS = RESX*RESY;
@@ -155,37 +155,37 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     int idx = 0;
     int NUM_THREADS=1024;
     int NUM_BLOCKS;
-	  int b=32;
-	  int MULTHREADS = 32;
+    int b=32;
+    int MULTHREADS = 32;
     int MULBLOCKSX;
     int MULBLOCKSY;
     dim3 threads(MULTHREADS, MULTHREADS);
       
     float time;
-    cudaEvent_t start, stop;	
+    cudaEvent_t start, stop;  
     
-	float* cpuW;
-	float* cpuB;
-	float* cpuZ;
-    	float* gpuW;
-	float* gpuB;
-	float* gpuZ;
-	float* gpuX;
-	   cpuZ = new float[outputSize];
+    float* cpuW;
+    float* cpuB;
+    float* cpuZ;
+    float* gpuW;
+    float* gpuB;
+    float* gpuZ;
+    float* gpuX;
+    cpuZ = new float[outputSize];
     cpuW = new float[weightSize];
     cpuB = new float[biasSize];
-	
+  
     cudaMalloc(&gpuZ, outputSize*sizeof(float));
     cudaMalloc(&gpuW, weightSize*sizeof(float));
     cudaMalloc(&gpuB, biasSize*sizeof(float));
     cudaMalloc(&gpuX, COORDS*DIM*sizeof(float));
     dim3 blocks(ceil((float)RESX/32), ceil((float)RESY/32));
     fillCoordinateMatrixCUDA<<<blocks, threads>>>(gpuX, start_x, start_y, diff_x, diff_y, RESX, RESY);
-	cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     
-  	cudaEventCreate(&start);
-  	cudaEventCreate(&stop);
-  	cudaEventRecord(start, 0);
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
 
     for(int layer=0;layer<NUM_LAYERS;layer++){
         string weightsfileName = "weightsT/net."+to_string(layer)+".linear.weight";
@@ -199,9 +199,9 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
         }
         inFile.open(biasfileName.c_str());
         readIntoArray(cpuB, &inFile, biasSize);
-		cudaMemcpy(gpuW, cpuW, weightSize*sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(gpuB, cpuB, biasSize*sizeof(float), cudaMemcpyHostToDevice);
-       	copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(gpuZ, gpuB, COORDS*biasSize, biasSize);
+        cudaMemcpy(gpuW, cpuW, weightSize*sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(gpuB, cpuB, biasSize*sizeof(float), cudaMemcpyHostToDevice);
+         copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(gpuZ, gpuB, COORDS*biasSize, biasSize);
         cudaDeviceSynchronize();
         MULBLOCKSX = ceil((float)COORDS/b);
         MULBLOCKSY = ceil((float)DIM/b);
@@ -223,11 +223,11 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     readIntoArray(cpuW, &inFile, DIM*OUT_DIM);
     inFile.open(biasfileName.c_str());
     readIntoArray(cpuB, &inFile, OUT_DIM);
-	cudaMemcpy(gpuW, cpuW, weightSize*sizeof(float), cudaMemcpyHostToDevice);
-	
-	cudaMemcpy(gpuB, cpuB, biasSize*sizeof(float), cudaMemcpyHostToDevice);
-	copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(gpuZ, gpuB, COORDS*biasSize, biasSize);
-        cudaDeviceSynchronize();
+    cudaMemcpy(gpuW, cpuW, weightSize*sizeof(float), cudaMemcpyHostToDevice);
+  
+    cudaMemcpy(gpuB, cpuB, biasSize*sizeof(float), cudaMemcpyHostToDevice);
+    copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(gpuZ, gpuB, COORDS*biasSize, biasSize);
+    cudaDeviceSynchronize();
     MULBLOCKSX = ceil((float)COORDS/b);
     MULBLOCKSY = ceil((float)OUT_DIM/b);
     dim3 blocks_final(MULBLOCKSX, MULBLOCKSY);
@@ -236,23 +236,23 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&time, start, stop);
-	cudaMemcpy(cpuZ, gpuZ, outputSize*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(cpuZ, gpuZ, outputSize*sizeof(float), cudaMemcpyDeviceToHost);
 
-if(PRINT_TIME){
-    	cout<<"Time Taken: "<<time/1000<<endl;
+    if(PRINT_TIME){
+      cout<<"Time Taken: "<<time/1000<<endl;
     }
-	else{
-		idx = 0;
-		for(int i=0;i<COORDS;i++){
-			for(int j=0;j<OUT_DIM;j++){
-				cout<<cpuZ[idx++]<<endl;
-			}
-		}
-	}
-	    delete [] cpuW;
+    else{
+      idx = 0;
+      for(int i=0;i<COORDS;i++){
+        for(int j=0;j<OUT_DIM;j++){
+          cout<<cpuZ[idx++]<<endl;
+        }
+      }
+    }
+    delete [] cpuW;
     delete [] cpuZ;
     delete [] cpuB;
-	
+  
     cudaFree(gpuW);
     cudaFree(gpuZ);
     cudaFree(gpuB);
