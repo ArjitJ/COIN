@@ -11,6 +11,13 @@
 #include "device_launch_parameters.h"
 
 using namespace std;
+__global__ void copyBias(float *O, float *Z, int N, int M) {
+    int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if(tid<N){
+        O[tid] = Z[tid%M];
+    }
+}
+
 __global__ void sineActivation(float *O, float *Z, int N, float weight=30.0) {
     int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
     if(tid<N){
@@ -96,21 +103,22 @@ int main(int argc, char* argv[]){
     cudaMallocManaged(&W, weightSize*sizeof(float));
     cudaMallocManaged(&B, biasSize*sizeof(float));
     cudaMallocManaged(&X, COORDS*DIM*sizeof(float));
-  
-	cudaMemAdvise(W, weightSize*sizeof(float), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
+    
+    cudaMemPrefetchAsync(Z, outputSize*sizeof(float), cudaCpuDeviceId);
+//	cudaMemAdvise(W, weightSize*sizeof(float), cudaMemAdviseSetPreferredLocation, id);
     cudaMemAdvise(B, biasSize*sizeof(float), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);   
-	cudaMemAdvise(X, COORDS*DIM*sizeof(float), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);   
+//	cudaMemAdvise(X, COORDS*DIM*sizeof(float), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);   
 // 	cudaMemPrefetchAsync(Z, outputSize*sizeof(float), id);
+    cudaMemAdvise(W, weightSize*sizeof(float), cudaMemAdviseSetReadMostly, id);
 
     fillCoordinateMatrix(X, STARTX, STARTY, ENDX, ENDY, RESX, RESY, HEIGHT, WIDTH);
-	cudaMemAdvise(X, COORDS*DIM*sizeof(float), cudaMemAdviseSetPreferredLocation, id);   
 	cudaMemPrefetchAsync(X, COORDS*DIM*sizeof(float), id);
+    cudaMemAdvise(X, COORDS*DIM*sizeof(float), cudaMemAdviseSetPreferredLocation, id);   
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
-
+    NUM_BLOCKS=ceil((float)(COORDS*DIM)/NUM_THREADS);
     for(int layer=0;layer<NUM_LAYERS;layer++){
-    
         string weightsfileName = "weightsT/net."+to_string(layer)+".linear.weight";
         string biasfileName = "weightsT/net."+to_string(layer)+".linear.bias";
         inFile.open(weightsfileName.c_str());
@@ -120,18 +128,21 @@ int main(int argc, char* argv[]){
         else{
             readIntoArray(W, &inFile, weightSize);
         }
-		cudaMemPrefetchAsync(W, weightSize*sizeof(float), id);
+        cudaMemPrefetchAsync(W, weightSize*sizeof(float), id);
   
         inFile.open(biasfileName.c_str());
         readIntoArray(B, &inFile, biasSize);
-
         idx=0;
+        /*
         for(int j=0;j<COORDS;j++){
             for(int i=0;i<biasSize;i++){
         		Z[idx++] = B[i];
         	}
 		}
-  		cudaMemPrefetchAsync(Z, outputSize*sizeof(float), id);
+        */
+        copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(Z, B, COORDS*biasSize, biasSize);
+        cudaDeviceSynchronize();
+        cudaMemPrefetchAsync(Z, outputSize*sizeof(float), id);
         if(layer == 0){
             cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, DIM, COORDS, INP_DIM, &alpha, W, DIM, X, INP_DIM,
                     &beta, Z, DIM);
@@ -140,17 +151,20 @@ int main(int argc, char* argv[]){
             cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, DIM, COORDS, DIM, &alpha, W, DIM, X, DIM,
                     &beta, Z, DIM);
         }
-
         cudaDeviceSynchronize();
-        NUM_BLOCKS=ceil((float)(COORDS*DIM)/NUM_THREADS);
         sineActivation<<<NUM_BLOCKS, NUM_THREADS>>>(X, Z, COORDS*DIM);
         cudaDeviceSynchronize();
+        cudaMemPrefetchAsync(Z, outputSize*sizeof(float), cudaCpuDeviceId);
+        cudaMemPrefetchAsync(W, weightSize*sizeof(float), cudaCpuDeviceId);
     }
-
+    cudaMemAdvise(X, COORDS*DIM*sizeof(float), cudaMemAdviseSetReadMostly, id);
+    
     string weightsfileName = "weightsT/last_layer.linear.weight";
     string biasfileName = "weightsT/last_layer.linear.bias";
     inFile.open(weightsfileName.c_str());
     readIntoArray(W, &inFile, DIM*OUT_DIM);
+    cudaMemPrefetchAsync(W, weightSize*sizeof(float), id);
+
     inFile.open(biasfileName.c_str());
     readIntoArray(B, &inFile, OUT_DIM);
     idx=0;
@@ -160,24 +174,23 @@ int main(int argc, char* argv[]){
             Z[idx++] = B[i];
         }
     }
-
+    cudaMemPrefetchAsync(Z, outputSize*sizeof(float), id);
     cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, OUT_DIM, COORDS, DIM, &alpha, W, OUT_DIM, X, DIM,
             &beta, Z, OUT_DIM);
     cudaDeviceSynchronize();
 
-	cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&time, start, stop);
-	cout<<"Time Taken: "<<time/1000<<endl;
-	//Disable printining only for running time analysis
-//     idx = 0;
-//     for(int i=0;i<COORDS;i++){
-//     	for(int j=0;j<OUT_DIM;j++){
-//     		cout<<Z[idx++]<<endl;
-//     	}
-//     }
-
-
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+    cout<<"Time Taken: "<<time/1000<<endl;
+    /*
+    idx = 0;
+    for(int i=0;i<COORDS;i++){
+    	for(int j=0;j<OUT_DIM;j++){
+    		cout<<Z[idx++]<<endl;
+    	}
+    }
+    */
     cudaFree(W);
     cudaFree(Z);
     cudaFree(B);
