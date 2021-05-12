@@ -11,6 +11,12 @@
 #include "device_launch_parameters.h"
 
 using namespace std;
+__global__ void copyBias(float *O, float *Z, int N, int M) {
+    int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if(tid<N){
+        O[tid] = Z[tid%M];
+    }
+}
 __global__ void MatrixMultiply(int M, int N, int K, float* A, int LDA, float* B, int LDB, float*C, int LDC) {
   __shared__ float ABlock[32*32];
   __shared__ float BBlock[32*32];
@@ -82,6 +88,16 @@ void readIntoArray(float* arr, ifstream* inFile, int SIZE){
         inFile->close();
     }
 }
+__global__ void fillCoordinateMatrixCUDA(float* X, float start_x, float start_y, float diff_x, float diff_y, int RESX, int RESY){
+    int idx;
+    int tidx = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int tidy = (blockIdx.y * blockDim.y) + threadIdx.y;
+    if(tidx < RESX && tidy < RESY){
+        idx = 2*(tidx*RESY + tidy);
+        X[idx++] = start_x + tidx*(diff_x);
+        X[idx++] = start_y + tidy*(diff_y);
+    }
+}
 void fillCoordinateMatrix(float* X, int STARTX, int STARTY, int ENDX, int ENDY, int RESX, int RESY, int HEIGHT, int WIDTH){
     float start_x = STARTX/(HEIGHT-1.0);
     start_x -= 0.5;
@@ -122,15 +138,19 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     PRINT_TIME = atoi(argv[10]);
     
     ifstream inFile;
-	  float* cpuW;
-    float* cpuB;
-    float* cpuZ;
-    float* cpuX;
-    float* gpuW;
-    float* gpuB;
-    float* gpuZ;
-    float* gpuX;
-    
+	  float* W;
+  	float* B;
+  	float* Z;
+  	float* X;
+    float start_x = STARTX/(HEIGHT-1.0);
+    start_x -= 0.5;
+    start_x *= 2.0;
+    float start_y = STARTY/(HEIGHT-1.0);
+    start_y -= 0.5;
+    start_y *= 2.0;
+    float diff_x = 2*((ENDX-STARTX)/(HEIGHT-1.0))/RESX;
+    float diff_y = 2*((ENDY-STARTY)/(HEIGHT-1.0))/RESY;
+	
     int weightSize = DIM*DIM;
     int biasSize = DIM;
     int COORDS = RESX*RESY;
@@ -148,18 +168,26 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     float time;
     cudaEvent_t start, stop;	
     
-    cpuZ = new float[outputSize];
+	float* cpuW;
+	float* cpuB;
+	float* cpuZ;
+	float* cpuX;
+    	float* gpuW;
+	float* gpuB;
+	float* gpuZ;
+	float* gpuX;
+	   cpuZ = new float[outputSize];
     cpuW = new float[weightSize];
     cpuB = new float[biasSize];
     cpuX = new float[COORDS*DIM];
-  
+	
     cudaMalloc(&gpuZ, outputSize*sizeof(float));
     cudaMalloc(&gpuW, weightSize*sizeof(float));
     cudaMalloc(&gpuB, biasSize*sizeof(float));
     cudaMalloc(&gpuX, COORDS*DIM*sizeof(float));
-
-    fillCoordinateMatrix(cpuX, STARTX, STARTY, ENDX, ENDY, RESX, RESY, HEIGHT, WIDTH);
-    cudaMemcpy(gpuX, cpuX, COORDS*DIM*sizeof(float), cudaMemcpyHostToDevice);
+    dim3 blocks(ceil((float)RESX/32), ceil((float)RESY/32));
+    fillCoordinateMatrixCUDA<<<blocks, threads>>>(gpuX, start_x, start_y, diff_x, diff_y, RESX, RESY);
+	cudaDeviceSynchronize();
     
   	cudaEventCreate(&start);
   	cudaEventCreate(&stop);
@@ -177,15 +205,10 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
         }
         inFile.open(biasfileName.c_str());
         readIntoArray(cpuB, &inFile, biasSize);
-        cudaMemcpy(gpuW, cpuW, weightSize*sizeof(float), cudaMemcpyHostToDevice);
-        idx=0;
-        for(int j=0;j<COORDS;j++){
-            for(int i=0;i<biasSize;i++){
-        		cpuZ[idx++] = cpuB[i];
-        	}
-        }
-        cudaMemcpy(gpuZ, cpuZ, outputSize*sizeof(float), cudaMemcpyHostToDevice);
-
+		cudaMemcpy(gpuW, cpuW, weightSize*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(gpuB, cpuB, biasSize*sizeof(float), cudaMemcpyHostToDevice);
+       	copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(gpuZ, gpuB, COORDS*biasSize, biasSize);
+        cudaDeviceSynchronize();
         MULBLOCKSX = ceil((float)COORDS/b);
         MULBLOCKSY = ceil((float)DIM/b);
         dim3 blocks(MULBLOCKSX, MULBLOCKSY);
@@ -206,25 +229,20 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     readIntoArray(cpuW, &inFile, DIM*OUT_DIM);
     inFile.open(biasfileName.c_str());
     readIntoArray(cpuB, &inFile, OUT_DIM);
-    idx=0;
-    cudaMemcpy(gpuW, cpuW, weightSize*sizeof(float), cudaMemcpyHostToDevice);
-
-    for(int j=0;j<COORDS;j++){
-        for(int i=0;i<biasSize;i++){
-            cpuZ[idx++] = cpuB[i];
-        }
-    }
-    cudaMemcpy(gpuZ, cpuZ, outputSize*sizeof(float), cudaMemcpyHostToDevice);
-        
-
+	cudaMemcpy(gpuW, cpuW, weightSize*sizeof(float), cudaMemcpyHostToDevice);
+	
+	cudaMemcpy(gpuB, cpuB, biasSize*sizeof(float), cudaMemcpyHostToDevice);
+	copyBias<<<NUM_BLOCKS, NUM_THREADS>>>(gpuZ, gpuB, COORDS*biasSize, biasSize);
+        cudaDeviceSynchronize();
     MULBLOCKSX = ceil((float)COORDS/b);
     MULBLOCKSY = ceil((float)OUT_DIM/b);
-    dim3 blocks(MULBLOCKSX, MULBLOCKSY);
-    MatrixMultiply<<<blocks,threads>>>(COORDS, OUT_DIM, DIM, gpuX, DIM, gpuW, OUT_DIM, gpuZ, OUT_DIM);
+    dim3 blocks_final(MULBLOCKSX, MULBLOCKSY);
+    MatrixMultiply<<<blocks_final,threads>>>(COORDS, OUT_DIM, DIM, gpuX, DIM, gpuW, OUT_DIM, gpuZ, OUT_DIM);
     cudaDeviceSynchronize();
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&time, start, stop);
+	cudaMemcpy(cpuZ, gpuZ, outputSize*sizeof(float), cudaMemcpyDeviceToHost);
 
 if(PRINT_TIME){
     	cout<<"Time Taken: "<<time/1000<<endl;
@@ -233,18 +251,12 @@ if(PRINT_TIME){
 		idx = 0;
 		for(int i=0;i<COORDS;i++){
 			for(int j=0;j<OUT_DIM;j++){
-				cout<<Z[idx++]<<endl;
+				cout<<cpuZ[idx++]<<endl;
 			}
 		}
 	}
-
-  delete [] cpuW;
-  delete [] cpuZ;
-  delete [] cpuB;
-  delete [] cpuX;
-
-  cudaFree(gpuW);
-  cudaFree(gpuZ);
-  cudaFree(gpuB);
-  cudaFree(gpuX);
+    cudaFree(W);
+    cudaFree(Z);
+    cudaFree(B);
+    cudaFree(X);
 }
