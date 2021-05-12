@@ -83,17 +83,17 @@ int main(int argc, char* argv[]){
     int INP_DIM = 2;
     int OUT_DIM = 3;
     // ArgParse
-    int NUM_LAYERS, DIM, HEIGHT, WIDTH, RESX, RESY, STARTX, STARTY, ENDX, ENDY;
+    int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
     NUM_LAYERS = atoi(argv[1]);
     DIM = atoi(argv[2]);
     HEIGHT = atoi(argv[3]);
-    WIDTH = atoi(argv[4]);
-    RESX = atoi(argv[5]);
-    RESY = atoi(argv[6]);
-    STARTX = atoi(argv[7]);
-    STARTY = atoi(argv[8]);
-    ENDX = atoi(argv[9]);
-    ENDY = atoi(argv[10]);
+    RESX = atoi(argv[4]);
+    RESY = atoi(argv[5]);
+    STARTX = atoi(argv[6]);
+    STARTY = atoi(argv[7]);
+    ENDX = atoi(argv[8]);
+    ENDY = atoi(argv[9]);
+    PRINT_TIME = atoi(argv[10]);
     
     ifstream inFile;
 	  float* W;
@@ -159,14 +159,18 @@ int main(int argc, char* argv[]){
     }
     MatrixMultiply(COORDS, OUT_DIM, DIM, X, DIM, W, OUT_DIM, Z, OUT_DIM);
     t2 = omp_get_wtime();
-  
-//     idx = 0;
-//    for(int i=0;i<COORDS;i++){
-//    	for(int j=0;j<OUT_DIM;j++){
-//    		cout<<Z[idx++]<<endl;
-//    	}
-//    }
-    cout<<"Time Taken: "<<t2-t1<<endl;
+    
+    if(PRINT_TIME){
+    	cout<<"Time Taken: "<<t2-t1<<endl;
+    }
+	else{
+		idx = 0;
+		for(int i=0;i<COORDS;i++){
+			for(int j=0;j<OUT_DIM;j++){
+				cout<<Z[idx++]<<endl;
+			}
+		}
+	}
 
     delete [] W;
     delete [] Z;
