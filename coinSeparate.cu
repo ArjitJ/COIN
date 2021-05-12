@@ -191,6 +191,8 @@ int NUM_LAYERS, DIM, HEIGHT, RESX, RESY, STARTX, STARTY, ENDX, ENDY, PRINT_TIME;
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&time, start, stop);
+	
+    cudaMemcpy(cpuZ, gpuZ, outputSize*sizeof(float), cudaMemcpyDeviceToHost);
 if(PRINT_TIME){
     	cout<<"Time Taken: "<<time/1000<<endl;
     }
@@ -198,7 +200,7 @@ if(PRINT_TIME){
 		idx = 0;
 		for(int i=0;i<COORDS;i++){
 			for(int j=0;j<OUT_DIM;j++){
-				cout<<Z[idx++]<<endl;
+				cout<<cpuZ[idx++]<<endl;
 			}
 		}
 	}
