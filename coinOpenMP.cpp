@@ -131,9 +131,10 @@ int main(int argc, char* argv[]){
         readIntoArray(B, &inFile, biasSize);
 
         idx=0;
+        #pragma omp parallel for collapse(2) schedule(dynamic, 32) 
         for(int j=0;j<COORDS;j++){
             for(int i=0;i<biasSize;i++){
-                Z[idx++] = B[i];
+                Z[j*biasSize+i] = B[i];
             }
         }
         if(layer == 0){
@@ -152,9 +153,10 @@ int main(int argc, char* argv[]){
     readIntoArray(B, &inFile, OUT_DIM);
     idx=0;
 
+    #pragma omp parallel for collapse(2) schedule(dynamic, 32) 
     for(int j=0;j<COORDS;j++){
         for(int i=0;i<biasSize;i++){
-            Z[idx++] = B[i];
+            Z[j*biasSize+i] = B[i];
         }
     }
     MatrixMultiply(COORDS, OUT_DIM, DIM, X, DIM, W, OUT_DIM, Z, OUT_DIM);
